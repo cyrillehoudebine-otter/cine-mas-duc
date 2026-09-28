@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7a1420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ciné Mas Duc">
+<title>Ciné Mas Duc</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --fond:#2b080d; --fond-nuit:#140305; --carte:#3d0f16; --carte-bord:#5a1a23; --velours:#7a1420;
+  --or:#e0b252; --or-clair:#f3cf7e; --or-sombre:#b8893a; --creme:#f6ead2; --doux:#d9b9a8;
+  --argent:#cfd6e0; --argent-texte:#16202e; --bordure-douce:#6b3a33;
+  --titre:'Limelight',serif; --texte:'Libre Franklin',system-ui,sans-serif;
+  --haut:env(safe-area-inset-top,0px); --bas:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--fond-nuit)}
+body{font-family:var(--texte);color:var(--creme);overscroll-behavior-y:none}
+button,input,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer}
+.moquette{background-color:var(--fond);background-image:radial-gradient(rgba(224,178,82,.07) 1px,transparent 1.4px);background-size:7px 7px}
+.vue{position:fixed;inset:0;display:none;flex-direction:column;max-width:640px;margin:0 auto}
+.vue.active{display:flex}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Bandeaux */
+.bandeau{flex-shrink:0;background:var(--velours);border-bottom:3px solid var(--or);padding-top:var(--haut)}
+.bandeau-accueil{position:relative;padding:18px 16px 14px;display:flex;flex-direction:column;gap:12px}
+.enseigne{display:flex;align-items:center;justify-content:center;gap:10px}
+.enseigne h1{margin:0;font:400 32px/1 var(--titre);letter-spacing:1px;color:var(--or-clair)}
+.ampoule{width:7px;height:7px;border-radius:50%;background:var(--or-clair);box-shadow:0 0 6px rgba(243,207,126,.7)}
+.btn-icone{width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.btn-icone:active{background:rgba(0,0,0,.2)}
+.reglages{position:absolute;top:calc(var(--haut) + 10px);right:6px}
+.recherche{display:flex;align-items:center;gap:10px;height:50px;padding:0 12px 0 14px;background:var(--fond);border:1px solid var(--or-sombre);border-radius:12px}
+.recherche input{flex-grow:1;min-width:0;border:0;background:transparent;font-size:17px;outline:none}
+.recherche input::placeholder{color:#b89585}
+.barre{display:flex;align-items:center;gap:4px;height:64px;padding:0 12px}
+.barre h1{margin:0;font:400 24px/1.1 var(--titre);color:var(--or-clair);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.retour{height:48px;padding:0 14px 0 6px;border:0;background:transparent;color:var(--or-clair);font:400 22px var(--titre);display:flex;align-items:center;gap:4px}
+
+/* Filtres actifs */
+.pastilles{flex-shrink:0;display:flex;gap:8px;padding:12px 16px 4px;overflow-x:auto;scrollbar-width:none}
+.pastilles::-webkit-scrollbar{display:none}
+.pastille{flex-shrink:0;white-space:nowrap;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--or-sombre);background:var(--carte);font-size:15px}
+.pastille.pleine{background:var(--or);border-color:var(--or);color:var(--fond);font-weight:600;display:flex;align-items:center;gap:6px}
+.lien{flex-shrink:0;white-space:nowrap;height:40px;padding:0 10px;border:0;background:transparent;color:var(--or);font-size:15px;text-decoration:underline}
+.compteur{flex-shrink:0;padding:6px 20px 8px;font-size:14px;color:var(--doux)}
+
+/* Liste */
+.liste{flex-grow:1;min-height:0;overflow-y:auto;padding:0 12px calc(100px + var(--bas));display:flex;flex-direction:column;gap:5px;-webkit-overflow-scrolling:touch}
+.ligne{display:flex;align-items:center;gap:10px;min-height:50px;padding:5px 8px 5px 14px;background:var(--carte);border:1px solid var(--carte-bord);border-radius:10px;text-align:left;width:100%}
+.ligne:active{background:#4d141d}
+.lt{flex-grow:1;min-width:0;display:flex;align-items:baseline;gap:8px}
+.lt .t{min-width:0;font-weight:600;line-height:1.2;white-space:nowrap}
+.lt .t.deux{white-space:normal}
+.lt .a{flex-shrink:0;font-size:15px;color:var(--doux)}
+.marque{flex-shrink:0;display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff8a65;align-self:center}
+.badge{flex-shrink:0;min-width:68px;height:36px;padding:0 10px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:5px;font-weight:700}
+.badge .l{font-size:13px}.badge .n{font-size:18px}
+.badge.P{background:var(--or);color:var(--fond)}
+.badge.C{background:var(--argent);color:var(--argent-texte)}
+.badge.grand{height:56px;padding:0 16px;gap:8px}.badge.grand .l{font-size:16px}.badge.grand .n{font-size:32px}
+.vide{padding:40px 20px;text-align:center;color:var(--doux);font-size:16px;line-height:1.5}
+
+/* Boutons */
+.actions-bas{position:absolute;left:12px;right:12px;bottom:calc(18px + var(--bas));display:flex;gap:12px}
+.btn-or{height:58px;border-radius:29px;border:2px solid var(--or-clair);background:var(--velours);color:var(--or-clair);font:400 20px var(--titre);display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.btn-or:active{filter:brightness(1.15)}
+.btn-or[disabled]{opacity:.5}
+.btn-rond{flex-shrink:0;width:58px;height:58px;border-radius:50%;border:2px solid var(--or-sombre);background:var(--fond);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.btn-contour{height:50px;border-radius:12px;border:1px solid var(--or-sombre);background:transparent;font:400 19px var(--titre);color:var(--creme);display:flex;align-items:center;justify-content:center;gap:8px;padding:0 14px}
+.btn-contour.petit{height:42px;font:500 14px var(--texte);border-radius:10px}
+.grow{flex-grow:1}
+
+/* Fiche */
+.defile{flex-grow:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.fiche-haut{display:flex;gap:16px;padding:20px 20px 0}
+.affiche{width:130px;height:195px;flex-shrink:0;border-radius:8px;background:var(--carte);border:1px solid var(--carte-bord);overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;color:var(--doux)}
+.affiche img{width:100%;height:100%;object-fit:cover;display:block}
+.fiche-id{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fiche-id h2{margin:0;font:400 28px/1.1 var(--titre);color:var(--or-clair);overflow-wrap:anywhere}
+.sous{font-size:14px;color:var(--doux);font-style:italic}
+.genres{display:flex;flex-wrap:wrap;gap:6px}
+.genres span{padding:5px 10px;border-radius:14px;border:1px solid var(--or-sombre);font-size:13px}
+.etiq{font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--doux)}
+.bloc{display:flex;flex-direction:column;gap:5px}
+.fiche-corps{display:flex;flex-direction:column;gap:18px;padding:24px 20px 20px}
+.fiche-corps .val{font-size:17px;line-height:1.45}
+.alerte{margin:16px 20px 0;padding:10px 14px;border-radius:10px;border:1px solid #ff8a65;color:#ffc2ad;font-size:14px;line-height:1.4}
+.pied{flex-shrink:0;display:flex;gap:10px;padding:12px 20px calc(16px + var(--bas));background:var(--fond);border-top:1px solid var(--carte-bord)}
+
+/* Formulaires */
+.form{display:flex;flex-direction:column;gap:14px;padding:16px 20px 24px}
+.champ{display:flex;flex-direction:column;gap:5px}
+.champ>span{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--doux)}
+.champ input,.champ textarea{min-height:46px;padding:0 12px;border-radius:10px;border:1px solid var(--or-sombre);background:var(--carte);font-size:16px;outline:none;width:100%}
+.champ textarea{padding:10px 12px;line-height:1.4;resize:vertical}
+.champ input:focus,.champ textarea:focus{border-color:var(--or-clair)}
+.grille3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.bascule{display:grid;border:1px solid var(--or-sombre);border-radius:12px;overflow:hidden}
+.bascule button{height:48px;border:0;background:var(--carte);font-size:16px}
+.bascule button+button{border-left:1px solid var(--or-sombre)}
+.bascule button.on{background:var(--or);color:var(--fond);font-weight:700}
+.puces{display:flex;flex-wrap:wrap;gap:6px}
+.puce{height:38px;padding:0 12px;border-radius:19px;border:1px solid var(--bordure-douce);background:var(--carte);font-size:14px}
+.puce.on{background:var(--or);border-color:var(--or);color:var(--fond);font-weight:600}
+.form-affiche{display:flex;gap:12px;align-items:flex-end}
+.form-affiche .affiche{width:72px;height:108px;font-size:12px}
+
+/* Recherche TMDB */
+.resultats{display:flex;flex-direction:column;gap:6px;padding:0 16px 24px}
+.resultat{display:flex;align-items:center;gap:12px;padding:8px 10px;border:1px solid var(--carte-bord);border-radius:12px;background:var(--carte);text-align:left;width:100%}
+.resultat .mini{width:46px;height:69px;flex-shrink:0;border-radius:4px;background:var(--fond);overflow:hidden}
+.resultat .mini img{width:100%;height:100%;object-fit:cover}
+.resultat .txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.resultat .txt b{font-size:16px}
+.resultat .txt span{font-size:14px;color:var(--doux)}
+
+/* Panneau filtres */
+.voile{position:fixed;inset:0;background:rgba(10,2,3,.7);display:none;z-index:20}
+.voile.active{display:flex}
+.panneau{margin-top:auto;width:100%;max-width:640px;margin-left:auto;margin-right:auto;max-height:92vh;overflow-y:auto;background:var(--fond);border-top:3px solid var(--or);border-radius:22px 22px 0 0;padding:12px 20px calc(20px + var(--bas));display:flex;flex-direction:column;gap:18px}
+.poignee{align-self:center;width:44px;height:5px;border-radius:3px;background:#7a4a3a}
+.panneau-tete{display:flex;align-items:center;justify-content:space-between}
+.panneau-tete h2{margin:0;font:400 26px var(--titre);color:var(--or-clair)}
+.annees{display:flex;align-items:flex-end;gap:12px}
+.annees .champ{flex:1}
+
+/* Code */
+.boite{margin:auto;width:calc(100% - 32px);max-width:380px;background:var(--fond);border:2px solid var(--or);border-radius:20px;padding:24px 22px 18px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.boite h2{margin:0;font:400 26px var(--titre);color:var(--or-clair);text-align:center}
+.boite p{margin:0;text-align:center;font-size:16px;line-height:1.4;color:var(--doux)}
+.points{display:flex;gap:14px}
+.points i{width:18px;height:18px;border-radius:50%;border:2px solid var(--or-sombre)}
+.points i.on{background:var(--or);border-color:var(--or)}
+.clavier{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.clavier button{height:58px;border-radius:14px;border:1px solid var(--bordure-douce);background:var(--carte);font-size:26px;font-weight:500}
+.clavier button:active{background:#5a1a23}
+.clavier .x{visibility:hidden}
+.erreur{min-height:20px;color:#ffb199;font-size:15px;text-align:center}
+.secousse{animation:sec .35s}
+@keyframes sec{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.boite .rangee{display:flex;gap:10px;width:100%}
+
+/* Réglages / enrichissement */
+.menu{display:flex;flex-direction:column;gap:10px;padding:20px}
+.menu button{min-height:60px;border-radius:12px;border:1px solid var(--carte-bord);background:var(--carte);display:flex;align-items:center;gap:14px;padding:10px 16px;text-align:left;font-size:17px}
+.menu small{display:block;color:var(--doux);font-size:14px;margin-top:2px}
+.jauge{height:12px;border-radius:6px;background:var(--carte);border:1px solid var(--carte-bord);overflow:hidden}
+.jauge div{height:100%;width:0;background:var(--or);transition:width .3s}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stats div{background:var(--carte);border:1px solid var(--carte-bord);border-radius:10px;padding:10px;text-align:center}
+.stats b{display:block;font-size:24px;color:var(--or-clair)}
+.stats span{font-size:13px;color:var(--doux)}
+.journal{font-size:13px;color:var(--doux);line-height:1.5;max-height:240px;overflow-y:auto;background:var(--fond-nuit);border-radius:10px;padding:10px 12px}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:calc(96px + var(--bas));transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--creme);color:var(--fond);padding:12px 18px;border-radius:12px;font-size:15px;font-weight:600;max-width:calc(100% - 40px);text-align:center;transition:.25s;z-index:40}
+.toast.active{opacity:1;transform:translateX(-50%) translateY(0)}
+.chargement{margin:auto;text-align:center;color:var(--doux);font-size:16px}
+.chargement .enseigne h1{font-size:30px;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<!-- ============ LISTE ============ -->
+<section id="v-liste" class="vue moquette active" aria-label="Liste des films">
+  <header class="bandeau bandeau-accueil">
+    <div class="enseigne"><span class="ampoule"></span><h1>Ciné Mas Duc</h1><span class="ampoule"></span></div>
+    <button class="btn-icone reglages" id="b-reglages" aria-label="Réglages">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+    </button>
+    <label class="recherche">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="q" type="search" placeholder="Titre, réalisateur, acteur…" aria-label="Rechercher" autocomplete="off">
+    </label>
+  </header>
+  <div class="pastilles" id="pastilles"></div>
+  <div class="compteur" id="compteur" aria-live="polite"></div>
+  <div class="liste" id="liste"></div>
+  <div class="actions-bas">
+    <button class="btn-or grow" id="b-hasard">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.3" fill="#f3cf7e"/><circle cx="16" cy="16" r="1.3" fill="#f3cf7e"/><circle cx="12" cy="12" r="1.3" fill="#f3cf7e"/></svg>Film au hasard</button>
+    <button class="btn-rond" id="b-ajouter" aria-label="Ajouter un film">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+</section>
+
+<!-- ============ FICHE ============ -->
+<section id="v-fiche" class="vue moquette" aria-label="Fiche du film">
+  <header class="bandeau"><div class="barre">
+    <button class="retour" data-retour><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Retour</button>
+  </div></header>
+  <div class="defile" id="fiche"></div>
+  <div class="pied" id="fiche-pied"></div>
+</section>
+
+<!-- ============ FORMULAIRE (ajout / modification) ============ -->
+<section id="v-form" class="vue moquette" aria-label="Vérifier le film">
+  <header class="bandeau"><div class="barre">
+    <button class="btn-icone" data-retour aria-label="Retour"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h1 id="form-titre">Vérifier le film</h1>
+  </div></header>
+  <div class="defile"><form class="form" id="form" autocomplete="off" onsubmit="return false"></form></div>
+  <div class="pied">
+    <button class="btn-contour" data-retour style="width:120px">Annuler</button>
+    <button class="btn-or grow" id="b-enregistrer" style="box-shadow:none">Enregistrer</button>
+  </div>
+</section>
+
+<!-- ============ RECHERCHE TMDB ============ -->
+<section id="v-tmdb" class="vue moquette" aria-label="Chercher un film">
+  <header class="bandeau"><div class="barre">
+    <button class="btn-icone" data-retour aria-label="Retour"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h1 id="tmdb-titre">Ajouter un film</h1>
+  </div></header>
+  <div class="defile">
+    <div class="form" style="padding-bottom:8px">
+      <div class="champ" id="tmdb-collection"><span>1 · Collection</span>
+        <div class="bascule" style="grid-template-columns:1fr 1fr"><button type="button" data-col="P" class="on">Principale</button><button type="button" data-col="C">Camille</button></div>
+      </div>
+      <div class="champ"><span id="tmdb-etiq">2 · Titre du film</span>
+        <label class="recherche" style="background:var(--carte)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="tmdb-q" type="search" placeholder="Tapez le titre…" aria-label="Titre du film" autocomplete="off">
+        </label>
+      </div>
+    </div>
+    <div class="resultats" id="tmdb-res"></div>
+    <div style="padding:0 16px 30px;text-align:center"><button class="lien" id="b-manuel">Film introuvable ? Saisie manuelle</button></div>
+  </div>
+</section>
+
+<!-- ============ RÉGLAGES ============ -->
+<section id="v-reglages" class="vue moquette" aria-label="Réglages">
+  <header class="bandeau"><div class="barre">
+    <button class="btn-icone" data-retour aria-label="Retour"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h1>Réglages</h1>
+  </div></header>
+  <div class="defile"><div class="menu">
+    <button id="m-code">🔒<span>Changer le code<small>Code demandé pour ajouter, modifier ou supprimer</small></span></button>
+    <button id="m-verifier">⚑<span>Films à vérifier<small id="m-verifier-n">Correspondances TMDB douteuses</small></span></button>
+    <button id="m-enrichir">✦<span>Enrichir la collection<small>Affiches, synopsis et genres depuis TMDB</small></span></button>
+    <button id="m-oublier">↺<span>Oublier le code sur cet appareil<small>Il sera redemandé à la prochaine modification</small></span></button>
+    <button id="m-recharger">⟳<span>Recharger la collection<small id="m-maj"></small></span></button>
+    <p style="margin:14px 4px 0;font-size:13px;line-height:1.5;color:var(--doux)">Affiches, synopsis et fiches proviennent de TMDB. Cette application utilise l'API TMDB sans être approuvée ni certifiée par TMDB.</p>
+  </div></div>
+</section>
+
+<!-- ============ CHANGER LE CODE ============ -->
+<section id="v-code" class="vue moquette" aria-label="Changer le code">
+  <header class="bandeau"><div class="barre">
+    <button class="btn-icone" data-retour aria-label="Retour"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h1>Changer le code</h1>
+  </div></header>
+  <div class="defile"><form class="form" onsubmit="return false" autocomplete="off">
+    <p style="margin:0;font-size:16px;line-height:1.45;color:var(--doux)">Le code protège l'ajout, la modification et la suppression des films. La consultation reste libre.</p>
+    <label class="champ"><span>Code actuel</span><input id="c-ancien" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*"></label>
+    <label class="champ"><span>Nouveau code</span><input id="c-nouveau" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*"></label>
+    <label class="champ"><span>Confirmer le nouveau code</span><input id="c-confirm" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*"></label>
+    <div class="erreur" id="c-erreur"></div>
+  </form></div>
+  <div class="pied"><button class="btn-or grow" id="b-code-ok" style="box-shadow:none">Enregistrer le code</button></div>
+</section>
+
+<!-- ============ ENRICHISSEMENT ============ -->
+<section id="v-enrichir" class="vue moquette" aria-label="Enrichir la collection">
+  <header class="bandeau"><div class="barre">
+    <button class="btn-icone" data-retour aria-label="Retour"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f3cf7e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h1>Enrichir</h1>
+  </div></header>
+  <div class="defile"><div class="form">
+    <p style="margin:0;font-size:16px;line-height:1.45;color:var(--doux)">Recherche chaque film pas encore enrichi sur TMDB (titre, année, réalisateur). Si la correspondance est sûre, l'affiche, le synopsis, les genres, la durée et les acteurs sont ajoutés. Sinon le film est marqué à vérifier, sans rien modifier. Garde l'écran allumé ; tu peux interrompre et reprendre plus tard.</p>
+    <div class="jauge"><div id="e-jauge"></div></div>
+    <div class="stats">
+      <div><b id="e-ok">0</b><span>enrichis</span></div>
+      <div><b id="e-douteux">0</b><span>à vérifier</span></div>
+      <div><b id="e-reste">0</b><span>restants</span></div>
+    </div>
+    <div class="journal" id="e-journal">Prêt.</div>
+  </div></div>
+  <div class="pied"><button class="btn-or grow" id="b-enrichir" style="box-shadow:none">Démarrer</button></div>
+</section>
+
+<!-- ============ PANNEAU FILTRES ============ -->
+<div class="voile" id="p-filtres" role="dialog" aria-label="Filtres">
+  <div class="panneau">
+    <div class="poignee"></div>
+    <div class="panneau-tete"><h2>Filtres</h2><button class="lien" id="f-effacer">Tout effacer</button></div>
+    <div class="champ"><span>Collection</span>
+      <div class="bascule" id="f-col" style="grid-template-columns:repeat(3,1fr)"><button data-v="T">Toutes</button><button data-v="P">Principale</button><button data-v="C">Camille</button></div></div>
+    <div class="champ"><span>Genre</span><div class="puces" id="f-genres"></div></div>
+    <div class="champ"><span>Années</span>
+      <div class="annees"><label class="champ"><span style="text-transform:none;letter-spacing:0">De</span><input id="f-amin" type="number" inputmode="numeric"></label>
+      <span style="color:var(--or-sombre);padding-bottom:12px">—</span>
+      <label class="champ"><span style="text-transform:none;letter-spacing:0">À</span><input id="f-amax" type="number" inputmode="numeric"></label></div></div>
+    <div class="champ"><span>Durée</span>
+      <div class="bascule" id="f-duree" style="grid-template-columns:repeat(3,1fr)"><button data-v="c">– de 1 h 30</button><button data-v="m">1 h 30 – 2 h</button><button data-v="l">+ de 2 h</button></div></div>
+    <button class="btn-or" id="f-voir" style="box-shadow:none">Voir les films</button>
+  </div>
+</div>
+
+<!-- ============ CODE (clavier) ============ -->
+<div class="voile" id="p-code" role="dialog" aria-label="Code">
+  <div class="boite" id="code-boite">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+    <h2>Code projectionniste</h2>
+    <p>Requis pour ajouter, modifier ou supprimer un film.</p>
+    <div class="points" id="code-points"><i></i><i></i><i></i><i></i></div>
+    <div class="erreur" id="code-erreur"></div>
+    <div class="clavier" id="clavier"></div>
+    <button class="lien" id="code-annuler" style="font:400 19px var(--titre)">Annuler</button>
+  </div>
+</div>
+
+<!-- ============ CONFIRMATION ============ -->
+<div class="voile" id="p-confirm" role="dialog" aria-label="Confirmation">
+  <div class="boite">
+    <h2 id="conf-titre">Supprimer ?</h2>
+    <p id="conf-texte"></p>
+    <div class="rangee"><button class="btn-contour grow" id="conf-non">Annuler</button><button class="btn-or grow" id="conf-oui" style="box-shadow:none;height:50px;font-size:19px">Supprimer</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ====================================================================
+   Configuration
+   ==================================================================== */
+const SUPABASE_URL = 'https://bejoaycwvaevwxaswlfo.supabase.co';
+const SUPABASE_CLE = 'sb_publishable_cPcLGyCeIhP8NBMU_KAosw_FkOVTj-K';
+const TMDB_CLE = '88706915d70ab793730f2a730b5bea86';
+const TMDB = 'https://api.themoviedb.org/3';
+const TMDB_IMG = 'https://image.tmdb.org/t/p/';
+
+const GENRES = ['Action','Animation','Aventure','Comédie','Documentaire','Drame','Familial','Fantastique','Guerre','Histoire','Horreur','Musique','Mystère','Policier','Romance','Science-fiction','Thriller','Western'];
+const GENRES_TMDB = {28:'Action',12:'Aventure',16:'Animation',35:'Comédie',80:'Policier',99:'Documentaire',18:'Drame',10751:'Familial',14:'Fantastique',36:'Histoire',27:'Horreur',10402:'Musique',9648:'Mystère',10749:'Romance',878:'Science-fiction',53:'Thriller',10752:'Guerre',37:'Western'};
+const COLONNES = 'id,collection,numero,titre,titre_original,titre_fichier,annee,duree,realisateur,acteurs,genres,affiche_url,tmdb_id,enrichi,a_verifier';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_CLE, { auth: { persistSession: false } });
+
+/* ====================================================================
+   Outils
+   ==================================================================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ');
+const duree = m => !m ? '' : (m < 60 ? m + ' mn' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0'));
+const stock = {
+  lire(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  ecrire(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  effacer(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+let toastMinuteur;
+function toast(msg, ms = 2600) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('active');
+  clearTimeout(toastMinuteur); toastMinuteur = setTimeout(() => t.classList.remove('active'), ms);
+}
+const pause = ms => new Promise(r => setTimeout(r, ms));
+const badge = (f, grand) => `<span class="badge ${f.collection}${grand ? ' grand' : ''}"><span class="l">${f.collection}</span><span class="n">${f.numero}</span></span>`;
+
+/* ====================================================================
+   Données
+   ==================================================================== */
+let films = [];
+const filtres = { q: '', col: 'T', genres: new Set(), amin: null, amax: null, duree: null, verifier: false };
+
+function preparer(f) {
+  f._cle = norm([f.titre, f.titre_original, f.titre_fichier, f.realisateur, f.acteurs].join(' | '));
+  f._tri = norm(f.titre).replace(/^(l |le |la |les |the |un |une )/, '');
+  return f;
+}
+
+async function charger(silencieux) {
+  const tous = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await sb.from('films').select(COLONNES).order('id').range(de, de + 999);
+    if (error) throw error;
+    tous.push(...data);
+    if (data.length < 1000) break;
+  }
+  films = tous.map(preparer);
+  stock.ecrire('films', tous);
+  stock.ecrire('films_maj', Date.now());
+  if (!silencieux) rendreListe();
+}
+
+/* ====================================================================
+   Navigation (le bouton retour du téléphone ferme l'écran courant)
+   ==================================================================== */
+const pile = ['v-liste'];
+function montrer(id) {
+  document.querySelectorAll('.vue').forEach(v => v.classList.toggle('active', v.id === id));
+}
+function aller(id) {
+  pile.push(id); montrer(id); history.pushState({ v: id }, '');
+}
+function retour() { history.back(); }
+let attentePop = null;
+window.addEventListener('popstate', () => {
+  for (const p of ['#p-code', '#p-confirm', '#p-filtres']) {
+    if ($(p).classList.contains('active')) {
+      $(p).classList.remove('active');
+      if (p === '#p-code') codeFin(null);
+      if (p === '#p-confirm') confFin(false);
+      const a = attentePop; attentePop = null; if (a) a();
+      return;
+    }
+  }
+  const a = attentePop; attentePop = null; if (a) setTimeout(a);
+  if (pile.length > 1) pile.pop();
+  montrer(pile[pile.length - 1]);
+  if (pile[pile.length - 1] === 'v-liste') rendreListe();
+});
+function ouvrirPanneau(sel) { $(sel).classList.add('active'); history.pushState({ p: sel }, ''); }
+function fermerPanneau(sel) { return new Promise(res => { if (!$(sel).classList.contains('active')) return res(); attentePop = res; history.back(); }); }
+function retourAttendu() { return new Promise(res => { attentePop = res; history.back(); }); }
+document.addEventListener('click', e => { if (e.target.closest('[data-retour]')) retour(); });
+
+/* ====================================================================
+   Liste, recherche, filtres
+   ==================================================================== */
+function filtrer() {
+  const mots = norm(filtres.q).split(/\s+/).filter(Boolean);
+  return films.filter(f => {
+    if (filtres.verifier && !f.a_verifier) return false;
+    if (filtres.col !== 'T' && f.collection !== filtres.col) return false;
+    if (filtres.genres.size && !(f.genres || []).some(g => filtres.genres.has(g))) return false;
+    if (filtres.amin && (!f.annee || f.annee < filtres.amin)) return false;
+    if (filtres.amax && (!f.annee || f.annee > filtres.amax)) return false;
+    if (filtres.duree) {
+      if (!f.duree) return false;
+      if (filtres.duree === 'c' && f.duree >= 90) return false;
+      if (filtres.duree === 'm' && (f.duree < 90 || f.duree > 120)) return false;
+      if (filtres.duree === 'l' && f.duree <= 120) return false;
+    }
+    return mots.every(m => f._cle.includes(m));
+  });
+}
+
+function nbFiltres() {
+  return (filtres.col !== 'T') + filtres.genres.size + (filtres.amin || filtres.amax ? 1 : 0) + !!filtres.duree + filtres.verifier;
+}
+
+function rendrePastilles() {
+  const p = [];
+  const n = nbFiltres();
+  p.push(`<button class="pastille pleine" data-f="ouvrir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2b080d" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtres${n ? ' · ' + n : ''}</button>`);
+  if (filtres.verifier) p.push(`<button class="pastille" data-f="verifier">À vérifier ✕</button>`);
+  if (filtres.col !== 'T') p.push(`<button class="pastille" data-f="col">${filtres.col === 'P' ? 'Principale' : 'Camille'} ✕</button>`);
+  for (const g of filtres.genres) p.push(`<button class="pastille" data-f="genre" data-g="${esc(g)}">${esc(g)} ✕</button>`);
+  if (filtres.amin || filtres.amax) p.push(`<button class="pastille" data-f="annees">${filtres.amin || '…'}–${filtres.amax || '…'} ✕</button>`);
+  if (filtres.duree) p.push(`<button class="pastille" data-f="duree">${{ c: '– de 1 h 30', m: '1 h 30 – 2 h', l: '+ de 2 h' }[filtres.duree]} ✕</button>`);
+  if (n) p.push(`<button class="lien" data-f="tout">Tout effacer</button>`);
+  $('#pastilles').innerHTML = p.join('');
+}
+
+$('#pastilles').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  const f = b.dataset.f;
+  if (f === 'ouvrir') return ouvrirFiltres();
+  if (f === 'verifier') filtres.verifier = false;
+  if (f === 'col') filtres.col = 'T';
+  if (f === 'genre') filtres.genres.delete(b.dataset.g);
+  if (f === 'annees') filtres.amin = filtres.amax = null;
+  if (f === 'duree') filtres.duree = null;
+  if (f === 'tout') effacerFiltres();
+  rendreListe();
+});
+
+function effacerFiltres() {
+  filtres.col = 'T'; filtres.genres.clear(); filtres.amin = filtres.amax = null; filtres.duree = null; filtres.verifier = false;
+}
+
+// Taille du titre : 18 px, réduite pour tenir sur une ligne jusqu'à 14 px, sinon sur deux lignes
+const toile = document.createElement('canvas').getContext('2d');
+function mesure(txt, px, poids) { toile.font = `${poids} ${px}px "Libre Franklin", sans-serif`; return toile.measureText(txt).width; }
+let largeurTitre = 0;
+
+function rendreListe() {
+  rendrePastilles();
+  const res = filtrer().sort((a, b) => a._tri.localeCompare(b._tri, 'fr'));
+  $('#compteur').textContent = res.length === films.length
+    ? `${res.length} films · triés par titre`
+    : `${res.length} film${res.length > 1 ? 's' : ''} sur ${films.length}`;
+  if (!res.length) {
+    $('#liste').innerHTML = `<div class="vide">Aucun film ne correspond.<br>Essaie un autre mot ou retire un filtre.</div>`;
+    return;
+  }
+  if (!largeurTitre) {
+    const l = $('#liste');
+    largeurTitre = (l.clientWidth || 360) - 24 - 22 - 10 - 68 - 12;
+  }
+  $('#liste').innerHTML = res.map(f => {
+    const an = f.annee || '';
+    const dispo = largeurTitre - (an ? mesure(an, 15, 400) + 8 : 0) - (f.a_verifier ? 18 : 0);
+    let fs = 18;
+    while (fs > 14 && mesure(f.titre, fs, 600) > dispo) fs--;
+    const deux = mesure(f.titre, fs, 600) > dispo;
+    return `<button class="ligne" data-id="${f.id}"><span class="lt"><span class="t${deux ? ' deux' : ''}" style="font-size:${fs}px">${esc(f.titre)}</span><span class="a">${an}</span></span>${f.a_verifier ? '<span class="marque" title="À vérifier"></span>' : ''}${badge(f)}</button>`;
+  }).join('');
+}
+window.addEventListener('resize', () => { largeurTitre = 0; if (pile[pile.length - 1] === 'v-liste') rendreListe(); });
+
+let minuteurQ;
+$('#q').addEventListener('input', e => { clearTimeout(minuteurQ); minuteurQ = setTimeout(() => { filtres.q = e.target.value; rendreListe(); $('#liste').scrollTop = 0; }, 120); });
+$('#liste').addEventListener('click', e => { const l = e.target.closest('.ligne'); if (l) ouvrirFiche(+l.dataset.id); });
+
+// Panneau filtres
+$('#f-genres').innerHTML = GENRES.map(g => `<button class="puce" data-g="${esc(g)}">${esc(g)}</button>`).join('');
+function syncFiltres() {
+  document.querySelectorAll('#f-col button').forEach(b => b.classList.toggle('on', b.dataset.v === filtres.col));
+  document.querySelectorAll('#f-genres .puce').forEach(b => b.classList.toggle('on', filtres.genres.has(b.dataset.g)));
+  document.querySelectorAll('#f-duree button').forEach(b => b.classList.toggle('on', b.dataset.v === filtres.duree));
+  $('#f-amin').value = filtres.amin || ''; $('#f-amax').value = filtres.amax || '';
+  const ans = films.map(f => f.annee).filter(Boolean);
+  if (ans.length) { $('#f-amin').placeholder = Math.min(...ans); $('#f-amax').placeholder = Math.max(...ans); }
+}
+function ouvrirFiltres() { syncFiltres(); ouvrirPanneau('#p-filtres'); }
+$('#f-col').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { filtres.col = b.dataset.v; syncFiltres(); } });
+$('#f-genres').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const g = b.dataset.g; filtres.genres.has(g) ? filtres.genres.delete(g) : filtres.genres.add(g); syncFiltres(); });
+$('#f-duree').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { filtres.duree = filtres.duree === b.dataset.v ? null : b.dataset.v; syncFiltres(); } });
+$('#f-effacer').addEventListener('click', () => { effacerFiltres(); syncFiltres(); });
+function lireAnnees() { filtres.amin = parseInt($('#f-amin').value) || null; filtres.amax = parseInt($('#f-amax').value) || null; }
+$('#f-voir').addEventListener('click', () => { lireAnnees(); fermerPanneau('#p-filtres'); rendreListe(); $('#liste').scrollTop = 0; });
+$('#p-filtres').addEventListener('click', e => { if (e.target.id === 'p-filtres') { lireAnnees(); fermerPanneau('#p-filtres'); rendreListe(); } });
+
+// Hasard
+let depuisHasard = false;
+$('#b-hasard').addEventListener('click', () => {
+  const res = filtrer();
+  if (!res.length) return toast('Aucun film avec ces filtres');
+  depuisHasard = true;
+  ouvrirFiche(res[Math.floor(Math.random() * res.length)].id);
+});
+
+/* ====================================================================
+   Fiche
+   ==================================================================== */
+let ficheId = null;
+async function ouvrirFiche(id, remplacer) {
+  const f = films.find(x => x.id === id); if (!f) return;
+  ficheId = id;
+  const hasard = depuisHasard; depuisHasard = false;
+  $('#fiche').innerHTML = htmlFiche(f, '…');
+  $('#fiche-pied').innerHTML = `
+    ${hasard ? `<button class="btn-contour grow" id="b-autre">Un autre</button>` : ''}
+    <button class="btn-contour grow" id="b-modifier"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Modifier</button>
+    <button class="btn-contour grow" id="b-supprimer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e0b252" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Supprimer</button>`;
+  $('#fiche').scrollTop = 0;
+  if (remplacer) montrer('v-fiche'); else aller('v-fiche');
+  const { data, error } = await sb.from('films').select('synopsis').eq('id', id).maybeSingle();
+  if (ficheId !== id) return;
+  const s = error ? 'Synopsis indisponible hors connexion.' : (data?.synopsis || 'Pas encore de synopsis.');
+  const el = $('#fiche-synopsis'); if (el) el.textContent = s;
+}
+function htmlFiche(f, synopsis) {
+  const sous = f.titre_original && norm(f.titre_original) !== norm(f.titre) ? `<div class="sous">${esc(f.titre_original)}</div>` : '';
+  return `
+  ${f.a_verifier ? `<div class="alerte">Correspondance TMDB incertaine : vérifie ce film avec Modifier, puis Chercher un autre film TMDB.</div>` : ''}
+  <div class="fiche-haut">
+    <div class="affiche">${f.affiche_url ? `<img src="${esc(f.affiche_url)}" alt="Affiche de ${esc(f.titre)}">` : 'Pas<br>d\'affiche'}</div>
+    <div class="fiche-id">
+      <h2>${esc(f.titre)}</h2>${sous}
+      <div style="font-size:16px">${[f.annee, duree(f.duree)].filter(Boolean).join(' · ')}</div>
+      ${(f.genres || []).length ? `<div class="genres">${f.genres.map(g => `<span>${esc(g)}</span>`).join('')}</div>` : ''}
+      <div class="bloc" style="margin-top:4px;align-items:flex-start"><span class="etiq" style="font-size:12px">Collection ${f.collection === 'P' ? 'Principale' : 'Camille'}</span>${badge(f, true)}</div>
+    </div>
+  </div>
+  <div class="fiche-corps">
+    ${f.realisateur ? `<div class="bloc"><div class="etiq">Réalisateur</div><div class="val">${esc(f.realisateur)}</div></div>` : ''}
+    ${f.acteurs ? `<div class="bloc"><div class="etiq">Acteurs</div><div class="val">${esc(f.acteurs)}</div></div>` : ''}
+    <div class="bloc"><div class="etiq">Synopsis</div><div class="val" id="fiche-synopsis">${esc(synopsis)}</div></div>
+  </div>`;
+}
+$('#fiche-pied').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const f = films.find(x => x.id === ficheId); if (!f) return;
+  if (b.id === 'b-autre') {
+    const res = filtrer().filter(x => x.id !== f.id);
+    if (!res.length) return toast('Pas d\'autre film avec ces filtres');
+    depuisHasard = true; ouvrirFiche(res[Math.floor(Math.random() * res.length)].id, true);
+  }
+  if (b.id === 'b-modifier') {
+    const code = await obtenirCode(); if (!code) return;
+    const { data } = await sb.from('films').select('synopsis').eq('id', f.id).maybeSingle();
+    ouvrirForm('modifier', { ...f, synopsis: data?.synopsis || '' });
+  }
+  if (b.id === 'b-supprimer') {
+    const code = await obtenirCode(); if (!code) return;
+    const ok = await confirmer('Supprimer ce film ?', `${f.titre} (${f.collection} ${f.numero}) sera retiré de la collection.`);
+    if (!ok) return;
+    const r = await ecrire('supprimer_film', { p_id: f.id });
+    if (!r) return;
+    films = films.filter(x => x.id !== f.id); stock.ecrire('films', films);
+    toast('Film supprimé'); await retourAttendu(); rendreListe();
+  }
+});
+
+/* ====================================================================
+   Code à 4 chiffres
+   ==================================================================== */
+let codeSaisi = '', codeResolve = null;
+$('#clavier').innerHTML = ['1','2','3','4','5','6','7','8','9','x','0','⌫'].map(t => `<button type="button" class="${t === 'x' ? 'x' : ''}" data-t="${t}" ${t === '⌫' ? 'aria-label="Effacer"' : ''}>${t === 'x' ? '' : t}</button>`).join('');
+function codePoints() { document.querySelectorAll('#code-points i').forEach((i, k) => i.classList.toggle('on', k < codeSaisi.length)); }
+function codeFin(v) { const r = codeResolve; codeResolve = null; if (r) r(v); }
+function obtenirCode() {
+  const memo = stock.lire('code', null);
+  if (memo) return Promise.resolve(memo);
+  return new Promise(res => {
+    codeResolve = res; codeSaisi = ''; codePoints(); $('#code-erreur').textContent = '';
+    ouvrirPanneau('#p-code');
+  });
+}
+$('#clavier').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b || b.classList.contains('x')) return;
+  if (b.dataset.t === '⌫') codeSaisi = codeSaisi.slice(0, -1);
+  else if (codeSaisi.length < 4) codeSaisi += b.dataset.t;
+  codePoints();
+  if (codeSaisi.length === 4) {
+    const essai = codeSaisi;
+    const { data, error } = await sb.rpc('verifier_code', { p_code: essai });
+    if (!error && data?.ok) {
+      stock.ecrire('code', essai);
+      const r = codeResolve; codeResolve = null;
+      await fermerPanneau('#p-code'); if (r) r(essai);
+    } else {
+      $('#code-erreur').textContent = error ? 'Connexion impossible' : data.erreur;
+      $('#code-boite').classList.remove('secousse'); void $('#code-boite').offsetWidth; $('#code-boite').classList.add('secousse');
+      codeSaisi = ''; codePoints();
+    }
+  }
+});
+$('#code-annuler').addEventListener('click', () => fermerPanneau('#p-code'));
+
+// Appel d'une fonction protégée ; redemande le code s'il a changé
+async function ecrire(fn, args, essai = 0) {
+  const code = await obtenirCode(); if (!code) return null;
+  const { data, error } = await sb.rpc(fn, { p_code: code, ...args });
+  if (error) { toast('Erreur : ' + error.message, 4000); return null; }
+  if (!data.ok) {
+    if (data.erreur === 'Code incorrect' && essai === 0) { stock.effacer('code'); return ecrire(fn, args, 1); }
+    toast(data.erreur, 3500); return null;
+  }
+  return data;
+}
+
+/* ====================================================================
+   Confirmation
+   ==================================================================== */
+let confResolve = null;
+function confFin(v) { const r = confResolve; confResolve = null; if (r) r(v); }
+function confirmer(titre, texte) {
+  $('#conf-titre').textContent = titre; $('#conf-texte').textContent = texte;
+  return new Promise(res => { confResolve = res; ouvrirPanneau('#p-confirm'); });
+}
+$('#conf-non').addEventListener('click', () => fermerPanneau('#p-confirm'));
+$('#conf-oui').addEventListener('click', async () => { const r = confResolve; confResolve = null; await fermerPanneau('#p-confirm'); if (r) r(true); });
+
+/* ====================================================================
+   TMDB
+   ==================================================================== */
+async function tmdb(chemin, params = {}) {
+  const u = new URL(TMDB + chemin);
+  u.searchParams.set('api_key', TMDB_CLE); u.searchParams.set('language', 'fr-FR');
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, v);
+  for (let i = 0; i < 4; i++) {
+    const r = await fetch(u);
+    if (r.status === 429) { await pause(1500 * (i + 1)); continue; }
+    if (!r.ok) throw new Error('TMDB ' + r.status);
+    return r.json();
+  }
+  throw new Error('TMDB occupé');
+}
+// Détails d'un film TMDB, convertis au format de la base
+async function detailsTmdb(id) {
+  const d = await tmdb('/movie/' + id, { append_to_response: 'credits' });
+  const real = (d.credits?.crew || []).filter(c => c.job === 'Director').map(c => c.name);
+  const act = (d.credits?.cast || []).slice(0, 5).map(c => c.name);
+  return {
+    tmdb_id: d.id,
+    titre: d.title || d.original_title,
+    titre_original: d.original_title || null,
+    annee: d.release_date ? +d.release_date.slice(0, 4) : null,
+    duree: d.runtime || null,
+    realisateur: real.join(', ') || null,
+    acteurs: act.join(', ') || null,
+    genres: [...new Set((d.genres || []).map(g => GENRES_TMDB[g.id]).filter(Boolean))],
+    synopsis: d.overview || null,
+    affiche_url: d.poster_path ? TMDB_IMG + 'w342' + d.poster_path : null,
+    _realisateurs: real
+  };
+}
+
+/* ====================================================================
+   Ajout / recherche TMDB
+   ==================================================================== */
+let modeTmdb = 'ajout', colAjout = 'P', formCourant = null;
+$('#b-ajouter').addEventListener('click', async () => {
+  const code = await obtenirCode(); if (!code) return;
+  ouvrirTmdb('ajout');
+});
+function ouvrirTmdb(mode, depart) {
+  modeTmdb = mode;
+  $('#tmdb-titre').textContent = mode === 'ajout' ? 'Ajouter un film' : 'Chercher sur TMDB';
+  $('#tmdb-collection').style.display = mode === 'ajout' ? '' : 'none';
+  $('#tmdb-etiq').textContent = mode === 'ajout' ? '2 · Titre du film' : 'Titre du film';
+  $('#b-manuel').style.display = mode === 'ajout' ? '' : 'none';
+  $('#tmdb-q').value = depart || '';
+  $('#tmdb-res').innerHTML = '';
+  aller('v-tmdb');
+  if (depart) chercherTmdb(); else setTimeout(() => $('#tmdb-q').focus(), 250);
+}
+$('#tmdb-collection').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  colAjout = b.dataset.col;
+  document.querySelectorAll('#tmdb-collection button').forEach(x => x.classList.toggle('on', x === b));
+});
+let minuteurT, jetonT = 0;
+$('#tmdb-q').addEventListener('input', () => { clearTimeout(minuteurT); minuteurT = setTimeout(chercherTmdb, 350); });
+async function chercherTmdb() {
+  const q = $('#tmdb-q').value.trim(); const jeton = ++jetonT;
+  if (q.length < 2) { $('#tmdb-res').innerHTML = ''; return; }
+  $('#tmdb-res').innerHTML = `<div class="vide">Recherche…</div>`;
+  try {
+    const r = await tmdb('/search/movie', { query: q, include_adult: 'false' });
+    if (jeton !== jetonT) return;
+    const liste = (r.results || []).slice(0, 12);
+    $('#tmdb-res').innerHTML = liste.length ? liste.map(m => `
+      <button class="resultat" data-tmdb="${m.id}">
+        <span class="mini">${m.poster_path ? `<img src="${TMDB_IMG}w92${m.poster_path}" alt="" loading="lazy">` : ''}</span>
+        <span class="txt"><b>${esc(m.title)}</b><span>${(m.release_date || '').slice(0, 4)}${m.original_title && m.original_title !== m.title ? ' · ' + esc(m.original_title) : ''}</span></span>
+      </button>`).join('') : `<div class="vide">Aucun résultat sur TMDB.</div>`;
+  } catch (e) { $('#tmdb-res').innerHTML = `<div class="vide">TMDB injoignable. Vérifie la connexion.</div>`; }
+}
+$('#tmdb-res').addEventListener('click', async e => {
+  const b = e.target.closest('[data-tmdb]'); if (!b) return;
+  b.style.opacity = .5;
+  try {
+    const d = await detailsTmdb(+b.dataset.tmdb); delete d._realisateurs;
+    if (modeTmdb === 'ajout') {
+      const { data } = await sb.rpc('prochain_numero', { p_collection: colAjout });
+      remplacerVue('form', 'ajout', { ...d, collection: colAjout, numero: data || '' });
+    } else {
+      // retour au formulaire en cours, rempli avec le film choisi (collection et numéro conservés)
+      const base = formCourant;
+      await retourAttendu();
+      ouvrirForm(base._mode, { ...base, ...d, id: base.id, collection: base.collection, numero: base.numero, a_verifier: false, enrichi: true }, 'rafraichir');
+    }
+  } catch (err) { toast('TMDB injoignable'); b.style.opacity = 1; }
+});
+$('#b-manuel').addEventListener('click', async () => {
+  const { data } = await sb.rpc('prochain_numero', { p_collection: colAjout });
+  remplacerVue('form', 'ajout', { collection: colAjout, numero: data || '', titre: $('#tmdb-q').value.trim(), genres: [] });
+});
+// Remplace l'écran de recherche par le formulaire (retour ramène à l'écran d'avant)
+function remplacerVue(_, mode, f) { pile.pop(); ouvrirForm(mode, f, 'remplacer'); }
+
+/* ====================================================================
+   Formulaire
+   ==================================================================== */
+function ouvrirForm(mode, f, comment) {
+  formCourant = { ...f, _mode: mode };
+  $('#form-titre').textContent = mode === 'ajout' ? 'Vérifier et ajouter' : 'Modifier le film';
+  $('#b-enregistrer').textContent = mode === 'ajout' ? 'Ajouter' : 'Enregistrer';
+  const g = new Set(f.genres || []);
+  $('#form').innerHTML = `
+    <div class="form-affiche">
+      <div class="affiche">${f.affiche_url ? `<img src="${esc(f.affiche_url)}" alt="">` : 'Pas<br>d\'affiche'}</div>
+      <div style="flex-grow:1;display:flex;flex-direction:column;gap:8px">
+        <button type="button" class="btn-contour petit" id="fm-tmdb">Chercher un autre film TMDB</button>
+        ${f.affiche_url ? `<button type="button" class="btn-contour petit" id="fm-sans-affiche">Retirer l'affiche</button>` : ''}
+      </div>
+    </div>
+    <label class="champ"><span>Titre</span><input id="fm-titre" value="${esc(f.titre)}"></label>
+    <div class="champ"><span>Collection</span><div class="bascule" id="fm-col" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-col="P" class="${f.collection === 'P' ? 'on' : ''}">Principale</button><button type="button" data-col="C" class="${f.collection === 'C' ? 'on' : ''}">Camille</button></div></div>
+    <div class="grille3">
+      <label class="champ"><span>Numéro</span><input id="fm-numero" inputmode="numeric" value="${esc(f.numero)}"></label>
+      <label class="champ"><span>Année</span><input id="fm-annee" inputmode="numeric" value="${esc(f.annee)}"></label>
+      <label class="champ"><span>Durée mn</span><input id="fm-duree" inputmode="numeric" value="${esc(f.duree)}"></label>
+    </div>
+    <div class="champ"><span>Genres</span><div class="puces" id="fm-genres">${GENRES.map(x => `<button type="button" class="puce${g.has(x) ? ' on' : ''}" data-g="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>
+    <label class="champ"><span>Réalisateur</span><input id="fm-real" value="${esc(f.realisateur)}"></label>
+    <label class="champ"><span>Acteurs</span><input id="fm-acteurs" value="${esc(f.acteurs)}"></label>
+    <label class="champ"><span>Titre original</span><input id="fm-orig" value="${esc(f.titre_original)}"></label>
+    <label class="champ"><span>Synopsis</span><textarea id="fm-syn" rows="5">${esc(f.synopsis)}</textarea></label>`;
+  if (comment === 'remplacer') { pile.push('v-form'); montrer('v-form'); }
+  else if (comment === 'rafraichir') montrer('v-form');
+  else aller('v-form');
+  document.querySelector('#v-form .defile').scrollTop = 0;
+}
+$('#form').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.closest('#fm-genres')) b.classList.toggle('on');
+  if (b.closest('#fm-col')) document.querySelectorAll('#fm-col button').forEach(x => x.classList.toggle('on', x === b));
+  if (b.id === 'fm-tmdb') { formCourant = { ...formCourant, ...lireForm() }; ouvrirTmdb(formCourant._mode === 'ajout' ? 'ajout-remplacer' : 'remplacer', formCourant.titre_original || formCourant.titre); }
+  if (b.id === 'fm-sans-affiche') { formCourant.affiche_url = null; b.remove(); $('#form .affiche').innerHTML = 'Pas<br>d\'affiche'; }
+});
+function lireForm() {
+  const n = v => { const x = parseInt(v); return Number.isFinite(x) ? x : null; };
+  const t = v => v.trim() || null;
+  return {
+    titre: $('#fm-titre').value.trim(),
+    collection: document.querySelector('#fm-col .on')?.dataset.col || 'P',
+    numero: n($('#fm-numero').value), annee: n($('#fm-annee').value), duree: n($('#fm-duree').value),
+    genres: [...document.querySelectorAll('#fm-genres .on')].map(b => b.dataset.g),
+    realisateur: t($('#fm-real').value), acteurs: t($('#fm-acteurs').value),
+    titre_original: t($('#fm-orig').value), synopsis: t($('#fm-syn').value)
+  };
+}
+$('#b-enregistrer').addEventListener('click', async () => {
+  const v = lireForm();
+  if (!v.titre) return toast('Le titre est obligatoire');
+  if (!v.numero || v.numero < 1) return toast('Numéro invalide');
+  const film = { ...v, affiche_url: formCourant.affiche_url || null, tmdb_id: formCourant.tmdb_id || null };
+  const bouton = $('#b-enregistrer'); bouton.disabled = true;
+  let r;
+  if (formCourant._mode === 'ajout') {
+    r = await ecrire('ajouter_film', { p_film: film });
+  } else {
+    if ('a_verifier' in formCourant) film.a_verifier = formCourant.a_verifier;
+    if ('enrichi' in formCourant) film.enrichi = formCourant.enrichi;
+    r = await ecrire('modifier_film', { p_id: formCourant.id, p_film: film });
+  }
+  bouton.disabled = false;
+  if (!r) return;
+  const f = preparer(r.film);
+  films = films.filter(x => x.id !== f.id); films.push(f);
+  stock.ecrire('films', films);
+  toast(formCourant._mode === 'ajout' ? `Ajouté : ${f.collection} ${f.numero}` : 'Enregistré');
+  // retour à la liste (ajout) ou à la fiche mise à jour (modification)
+  const mode = formCourant._mode;
+  await retourAttendu();
+  if (mode === 'ajout') rendreListe(); else ouvrirFiche(f.id, true);
+});
+
+/* ====================================================================
+   Réglages
+   ==================================================================== */
+$('#b-reglages').addEventListener('click', () => {
+  const n = films.filter(f => f.a_verifier).length;
+  $('#m-verifier-n').textContent = n ? `${n} film${n > 1 ? 's' : ''} marqué${n > 1 ? 's' : ''} lors de l'enrichissement` : 'Aucun pour l\'instant';
+  const maj = stock.lire('films_maj', null);
+  $('#m-maj').textContent = maj ? 'Dernière mise à jour : ' + new Date(maj).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  aller('v-reglages');
+});
+$('#m-verifier').addEventListener('click', () => { effacerFiltres(); filtres.verifier = true; retour(); });
+$('#m-oublier').addEventListener('click', () => { stock.effacer('code'); toast('Code oublié sur cet appareil'); });
+$('#m-recharger').addEventListener('click', async () => {
+  toast('Chargement…');
+  try { await charger(true); toast(`${films.length} films chargés`); } catch (e) { toast('Connexion impossible'); }
+});
+$('#m-code').addEventListener('click', () => { ['#c-ancien', '#c-nouveau', '#c-confirm'].forEach(s => $(s).value = ''); $('#c-erreur').textContent = ''; aller('v-code'); });
+$('#b-code-ok').addEventListener('click', async () => {
+  const a = $('#c-ancien').value, n = $('#c-nouveau').value, c = $('#c-confirm').value;
+  if (!/^\d{4}$/.test(n)) return $('#c-erreur').textContent = 'Le nouveau code doit faire 4 chiffres';
+  if (n !== c) return $('#c-erreur').textContent = 'Les deux nouveaux codes sont différents';
+  const { data, error } = await sb.rpc('changer_code', { p_code: a, p_nouveau: n });
+  if (error) return $('#c-erreur').textContent = 'Connexion impossible';
+  if (!data.ok) return $('#c-erreur').textContent = data.erreur;
+  stock.ecrire('code', n); toast('Nouveau code enregistré'); retour();
+});
+
+/* ====================================================================
+   Enrichissement TMDB
+   ==================================================================== */
+let enrichEnCours = false;
+$('#m-enrichir').addEventListener('click', () => { majStatsEnrich(); aller('v-enrichir'); });
+function majStatsEnrich() {
+  const ok = films.filter(f => f.enrichi && !f.a_verifier).length;
+  const dt = films.filter(f => f.a_verifier).length;
+  const reste = films.filter(f => !f.enrichi).length;
+  $('#e-ok').textContent = ok; $('#e-douteux').textContent = dt; $('#e-reste').textContent = reste;
+  $('#e-jauge').style.width = films.length ? ((ok + dt) / films.length * 100) + '%' : 0;
+}
+function journal(msg) { const j = $('#e-journal'); j.innerHTML = esc(msg) + '<br>' + j.innerHTML.split('<br>').slice(0, 60).join('<br>'); }
+const nomComparable = s => norm(s).replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+function memeRealisateur(fichier, tmdbNoms) {
+  if (!fichier || !tmdbNoms.length) return false;
+  const a = nomComparable(fichier);
+  return tmdbNoms.some(n => { const b = nomComparable(n); return a.some(w => b.includes(w)); });
+}
+async function trouver(f) {
+  const titres = [...new Set([f.titre_fichier || f.titre, f.titre].filter(Boolean))];
+  const vus = new Map();
+  for (const q of titres) {
+    for (const an of f.annee ? [f.annee, null] : [null]) {
+      const r = await tmdb('/search/movie', { query: q, year: an || undefined });
+      for (const m of (r.results || []).slice(0, 5)) if (!vus.has(m.id)) vus.set(m.id, m);
+      if (vus.size) break;
+    }
+    if (vus.size >= 3) break;
+  }
+  // classement : année proche d'abord
+  const cands = [...vus.values()].sort((a, b) => {
+    const da = Math.abs((+(a.release_date || '0').slice(0, 4)) - (f.annee || 0));
+    const db = Math.abs((+(b.release_date || '0').slice(0, 4)) - (f.annee || 0));
+    return da - db;
+  }).slice(0, 3);
+  for (const c of cands) {
+    const d = await detailsTmdb(c.id);
+    const ecart = f.annee && d.annee ? Math.abs(d.annee - f.annee) : 9;
+    if (memeRealisateur(f.realisateur, d._realisateurs) && ecart <= 2) return d;
+    if (!f.realisateur && ecart === 0 && cands.length === 1) return d;
+  }
+  return null;
+}
+$('#b-enrichir').addEventListener('click', async () => {
+  if (enrichEnCours) { enrichEnCours = false; $('#b-enrichir').textContent = 'Arrêt en cours…'; return; }
+  const code = await obtenirCode(); if (!code) return;
+  enrichEnCours = true; $('#b-enrichir').textContent = 'Interrompre';
+  const file = films.filter(f => !f.enrichi);
+  journal(`Début : ${file.length} films à traiter.`);
+  let i = 0;
+  const ouvrier = async () => {
+    while (enrichEnCours && i < file.length) {
+      const f = file[i++];
+      let maj;
+      try {
+        const d = await trouver(f);
+        if (d) {
+          maj = { titre: d.titre, titre_original: d.titre_original, genres: d.genres, synopsis: d.synopsis,
+                  affiche_url: d.affiche_url, tmdb_id: d.tmdb_id, enrichi: true, a_verifier: false };
+          if (d.duree) maj.duree = d.duree;
+          if (d.realisateur) maj.realisateur = d.realisateur;
+          if (d.acteurs) maj.acteurs = d.acteurs;
+        } else maj = { enrichi: true, a_verifier: true };
+      } catch (e) { journal(`Erreur TMDB sur ${f.titre}, film laissé pour plus tard.`); await pause(2000); continue; }
+      const r = await ecrire('modifier_film', { p_id: f.id, p_film: maj });
+      if (!r) { enrichEnCours = false; journal('Écriture refusée, arrêt.'); break; }
+      Object.assign(f, r.film); preparer(f);
+      journal(maj.a_verifier ? `À vérifier : ${f.titre} (${f.collection} ${f.numero})` : `OK : ${f.titre}`);
+      majStatsEnrich();
+    }
+  };
+  await Promise.all([ouvrier(), ouvrier(), ouvrier()]);
+  stock.ecrire('films', films);
+  enrichEnCours = false; $('#b-enrichir').textContent = films.some(f => !f.enrichi) ? 'Reprendre' : 'Terminé';
+  journal(films.some(f => !f.enrichi) ? 'Interrompu.' : 'Terminé.');
+  majStatsEnrich();
+});
+
+/* ====================================================================
+   Démarrage
+   ==================================================================== */
+(async function demarrer() {
+  history.replaceState({ v: 'v-liste' }, '');
+  const cache = stock.lire('films', null);
+  await document.fonts.ready.catch(() => {});
+  if (cache && cache.length) { films = cache.map(preparer); rendreListe(); }
+  else $('#liste').innerHTML = `<div class="chargement"><div class="enseigne"><h1>Ciné Mas Duc</h1></div>Ouverture des portes…</div>`;
+  try { await charger(); }
+  catch (e) { if (!films.length) $('#liste').innerHTML = `<div class="vide">Impossible de charger la collection.<br>Vérifie la connexion puis rouvre l'appli.</div>`; }
+})();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "Ciné Mas Duc",
+  "short_name": "Ciné Mas Duc",
+  "description": "La dvdthèque de la famille",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b080d",
+  "theme_color": "#7a1420",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
