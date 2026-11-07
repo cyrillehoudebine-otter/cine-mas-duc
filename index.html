@@ -375,6 +375,7 @@ const badge = (f, grand) => `<span class="badge ${f.collection}${grand ? ' grand
    Données
    ==================================================================== */
 let films = [];
+let tri = stock.lire('tri', 'titre'); // 'titre' ou 'numero'
 const filtres = { q: '', col: 'T', genres: new Set(), amin: null, amax: null, duree: null, verifier: false };
 
 function preparer(f) {
@@ -458,6 +459,7 @@ function rendrePastilles() {
   const p = [];
   const n = nbFiltres();
   p.push(`<button class="pastille pleine" data-f="ouvrir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2b080d" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtres${n ? ' · ' + n : ''}</button>`);
+  p.push(`<button class="pastille" data-f="tri">${tri === 'numero' ? 'Tri : N° ⇅' : 'Tri : A–Z ⇅'}</button>`);
   if (filtres.verifier) p.push(`<button class="pastille" data-f="verifier">À vérifier ✕</button>`);
   if (filtres.col !== 'T') p.push(`<button class="pastille" data-f="col">${filtres.col === 'P' ? 'Principale' : 'Camille'} ✕</button>`);
   for (const g of filtres.genres) p.push(`<button class="pastille" data-f="genre" data-g="${esc(g)}">${esc(g)} ✕</button>`);
@@ -471,6 +473,7 @@ $('#pastilles').addEventListener('click', e => {
   const b = e.target.closest('[data-f]'); if (!b) return;
   const f = b.dataset.f;
   if (f === 'ouvrir') return ouvrirFiltres();
+  if (f === 'tri') { tri = tri === 'numero' ? 'titre' : 'numero'; stock.ecrire('tri', tri); rendreListe(); $('#liste').scrollTop = 0; return; }
   if (f === 'verifier') filtres.verifier = false;
   if (f === 'col') filtres.col = 'T';
   if (f === 'genre') filtres.genres.delete(b.dataset.g);
@@ -491,9 +494,11 @@ let largeurTitre = 0;
 
 function rendreListe() {
   rendrePastilles();
-  const res = filtrer().sort((a, b) => a._tri.localeCompare(b._tri, 'fr'));
+  const res = filtrer().sort(tri === 'numero'
+    ? (a, b) => (a.numero || 0) - (b.numero || 0) || a.collection.localeCompare(b.collection)
+    : (a, b) => a._tri.localeCompare(b._tri, 'fr'));
   $('#compteur').textContent = res.length === films.length
-    ? `${res.length} films · triés par titre`
+    ? `${res.length} films · triés par ${tri === 'numero' ? 'numéro' : 'titre'}`
     : `${res.length} film${res.length > 1 ? 's' : ''} sur ${films.length}`;
   if (!res.length) {
     $('#liste').innerHTML = `<div class="vide">Aucun film ne correspond.<br>Essaie un autre mot ou retire un filtre.</div>`;
@@ -781,6 +786,8 @@ function ouvrirForm(mode, f, comment) {
       <div class="affiche">${f.affiche_url ? `<img src="${esc(f.affiche_url)}" alt="">` : 'Pas<br>d\'affiche'}</div>
       <div style="flex-grow:1;display:flex;flex-direction:column;gap:8px">
         <button type="button" class="btn-contour petit" id="fm-tmdb">Chercher un autre film TMDB</button>
+        <button type="button" class="btn-contour petit" id="fm-image">Choisir une image</button>
+        <input type="file" id="fm-fichier" accept="image/*" hidden>
         ${f.affiche_url ? `<button type="button" class="btn-contour petit" id="fm-sans-affiche">Retirer l'affiche</button>` : ''}
       </div>
     </div>
@@ -807,7 +814,24 @@ $('#form').addEventListener('click', e => {
   if (b.closest('#fm-genres')) b.classList.toggle('on');
   if (b.closest('#fm-col')) document.querySelectorAll('#fm-col button').forEach(x => x.classList.toggle('on', x === b));
   if (b.id === 'fm-tmdb') { formCourant = { ...formCourant, ...lireForm() }; ouvrirTmdb(formCourant._mode === 'ajout' ? 'ajout-remplacer' : 'remplacer', formCourant.titre_original || formCourant.titre); }
+  if (b.id === 'fm-image') $('#fm-fichier').click();
   if (b.id === 'fm-sans-affiche') { formCourant.affiche_url = null; b.remove(); $('#form .affiche').innerHTML = 'Pas<br>d\'affiche'; }
+});
+// Image choisie sur l'appareil : réduite à 342 px de large (comme TMDB), JPEG, enregistrée dans le champ affiche
+$('#form').addEventListener('change', async e => {
+  if (e.target.id !== 'fm-fichier' || !e.target.files[0]) return;
+  try {
+    const url = URL.createObjectURL(e.target.files[0]);
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const l = Math.min(342, img.naturalWidth), h = Math.round(img.naturalHeight * l / img.naturalWidth);
+    const c = document.createElement('canvas'); c.width = l; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, l, h);
+    URL.revokeObjectURL(url);
+    formCourant.affiche_url = c.toDataURL('image/jpeg', 0.8);
+    $('#form .affiche').innerHTML = `<img src="${formCourant.affiche_url}" alt="">`;
+    if (!$('#fm-sans-affiche')) $('#fm-image').insertAdjacentHTML('afterend', `<button type="button" class="btn-contour petit" id="fm-sans-affiche">Retirer l'affiche</button>`);
+  } catch (err) { toast('Image illisible'); }
+  e.target.value = '';
 });
 function lireForm() {
   const n = v => { const x = parseInt(v); return Number.isFinite(x) ? x : null; };
