@@ -1,5 +1,5 @@
 // Ciné Mas Duc — mise en cache pour ouverture rapide et hors connexion
-const CACHE = 'cine-mas-duc-v1';
+const CACHE = 'cine-mas-duc-v2';
 const COQUILLE = ['./', 'index.html', 'manifest.webmanifest', 'icone-192.png', 'icone-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
